@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Elementa",
+    "slug": "elementa",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "scheme": "elementa",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.elementa.app" },
+    "android": { "package": "com.elementa.app" },
+    "web": { "name": "Elementa" }
+  }
+}

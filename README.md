@@ -1,142 +1,72 @@
-# Elementa
+# Elementa — Fórum de comentários
 
-Tabela periódica para Android, iOS e navegador, construída com Expo, React Native e TypeScript. Interface em português, tema escuro e dados disponíveis offline.
+Aplicativo Android, iOS e Web construído com Expo, React Native e TypeScript. A tela única permite publicar feedback com nome e comentário obrigatórios; não há cadastro nem página de login.
 
-## Rodar no VS Code
+## Funcionalidades
 
-1. Instale o Node.js 22 LTS (22.13 ou superior) e o VS Code.
-2. Extraia este ZIP e abra a pasta `elementa-sdk57` no VS Code.
-3. No terminal dessa pasta, execute:
+- Formulário que exige nome e feedback, com validação e limites de tamanho.
+- Lista de comentários mais recentes primeiro e atualização manual do fórum.
+- Salvamento persistente no aparelho com AsyncStorage.
+- Fórum compartilhado com Supabase quando o banco estiver configurado; sem credenciais, o app informa que o envio fica apenas no aparelho.
+- Aviso de que nome e comentário podem ficar visíveis a outras pessoas.
+
+## Rodar localmente
+
+Instale Node.js 22 LTS (22.13 ou superior) e execute na pasta do projeto:
 
 ```sh
 npm ci
 npm start
 ```
 
-Instale o Expo Go no celular e leia o QR code. Computador e celular precisam estar na mesma rede. O projeto usa Expo SDK 57; use um cliente compatível com esse SDK. Em Android, versões compatíveis podem ser obtidas em https://expo.dev/go. Se o Expo Go instalado exigir outro SDK, use um development build com EAS ou siga a documentação de atualização do Expo.
+Para Web, rode `npm run web`. O projeto usa Expo SDK 57. Para abrir no Android com Expo Go, use um cliente compatível com esse SDK; para instalar um APK de teste, siga a seção abaixo.
 
-Para abrir no navegador:
+## Ativar o fórum compartilhado
 
-```sh
-npm run web
-```
+O app funciona sem servidor, salvando os comentários apenas neste dispositivo. Para que os comentários apareçam para todas as pessoas:
 
-O navegador é a alternativa imediata se não houver um cliente Expo Go compatível. Para testar em emulador Android, instale e inicie o emulador pelo Android Studio e execute `npm run android`. O simulador iOS exige macOS e Xcode.
-
-## Funcionalidades
-
-- 118 elementos com nomes em português, massa, configuração eletrônica, camadas, categoria e propriedades físicas disponíveis na fonte.
-- Tabela com grupos e períodos, rolagem horizontal, controles de escala e visualização em cartões.
-- Busca sem diferenciar acentos, por nome, símbolo ou número; filtros por categoria.
-- Detalhes, favoritos e comparação entre dois elementos.
-- Quiz introdutório por tema (símbolos, nomes, cotidiano ou misto) e sessões de 5, 10 ou 20 perguntas.
-- Correção imediata, explicações, revisão ao final, experiência, nível e conquistas.
-- Meta diária, histórico dos últimos 100 quizzes e estatísticas.
-- Modo visitante com dados locais; contas reais e sincronização com Supabase quando configurado.
-
-## Ativar cadastro e login
-
-O app funciona sem servidor no modo visitante. Cadastro e login requerem seu próprio projeto Supabase; não há contas fictícias nem credenciais incluídas.
-
-1. Crie um projeto em https://supabase.com.
-2. No SQL Editor, execute `supabase/schema.sql` uma única vez. As políticas permitem que cada usuário acesse somente seu progresso.
-3. Copie `.env.example` para `.env` na raiz do projeto.
-4. Preencha a URL do projeto e a chave pública anon/publishable:
+1. Crie um projeto Supabase.
+2. No SQL Editor, execute `supabase/schema.sql`.
+3. Copie `.env.example` para `.env` e preencha a URL do projeto e a chave pública `anon`/`publishable`:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=SUA-CHAVE-PUBLICA
 ```
 
-Nunca coloque a chave `service_role` no aplicativo.
+4. Reinicie o Expo com `npx expo start --clear`.
 
-5. Ative o provedor Email em Authentication > Providers.
-6. Reinicie o Expo: `npx expo start --clear`.
-7. Faça o cadastro e confirme o e-mail, se a confirmação estiver habilitada. Depois, volte ao app e faça login.
+Nunca coloque a chave `service_role` no aplicativo. O fórum é público: qualquer pessoa pode ler e enviar comentários, mas o app não permite editar ou excluir comentários. Para uma publicação aberta na internet, configure também controles anti-spam/rate limit no Supabase e uma política de moderação adequada.
 
-### Recuperação de senha
+Para EAS Build, configure as mesmas variáveis como variáveis de ambiente do projeto Expo no ambiente `preview`; o `.env` local é ignorado pelo Git e não é enviado ao build remoto.
 
-A recuperação usa uma página web incluída em `recovery/index.html`.
+## Gerar APK Android
 
-1. Abra esse arquivo e preencha `SUPABASE_URL` e `SUPABASE_KEY` com as mesmas credenciais públicas do app.
-2. Hospede a pasta `recovery` em um serviço de hospedagem estática com HTTPS.
-3. Em Supabase > Authentication > URL Configuration, use a URL dessa página como Site URL e adicione-a às Redirect URLs.
-4. O botão “Esqueci minha senha” envia o link. O usuário define a nova senha nessa página e volta ao aplicativo para entrar.
+O perfil `preview` em `eas.json` já está configurado para gerar um APK de instalação. Entre na sua conta Expo e execute:
 
-As mensagens transacionais e limites de envio dependem da configuração do seu projeto Supabase. Para distribuição, configure seu próprio SMTP e a URL pública de recuperação. O app não precisa de domínio para testes como visitante.
+```sh
+npx eas-cli login
+npx eas-cli build --platform android --profile preview
+```
 
-### Armazenamento e sincronização
+O EAS compila na nuvem e disponibiliza um link para baixar o APK ao concluir. A conta Expo e o identificador do projeto EAS precisam estar configurados para iniciar o build.
 
-Cada conta possui cache separado no aparelho. A sessão de autenticação é persistida pelo Supabase no armazenamento persistente do dispositivo, então fechar e reabrir o app não encerra a sessão; só “Sair da conta” desconecta o usuário. As senhas não são gravadas pelo código do app. Favoritos e resultados são salvos localmente e enviados à nuvem após mudanças. Ao reabrir uma conta, o app carrega o registro mais recente entre o cache e a nuvem e tenta sincronizar alterações locais que ficaram pendentes. Mudanças simultâneas em vários aparelhos seguem a última gravação, sem mesclagem de conflitos. Visitante e conta têm históricos separados.
-
-A consulta de elementos e o quiz funcionam offline depois de instalar o aplicativo. Login, recuperação e sincronização exigem internet. No desenvolvimento, o Expo Go normalmente precisa alcançar o servidor de desenvolvimento para carregar o projeto.
-
-## Verificação
+## Verificações
 
 ```sh
 npm run typecheck
 npm test
+npx expo export --platform android
 npx expo export --platform web
 ```
 
+A exportação valida os bundles, mas não substitui um build APK nem um teste em aparelho físico.
+
 ## Estrutura
 
-- `App.tsx`: interface, navegação por abas, fluxos de estudo e conta.
-- `src/elements.json`: base local dos elementos.
-- `src/quiz.ts`: geração de perguntas.
-- `src/backend.ts`: cliente de autenticação e persistência.
-- `supabase/schema.sql`: tabela e políticas de acesso.
-- `recovery/index.html`: página de redefinição de senha.
-- `tests/quiz.test.ts`: integridade da base e perguntas.
-
-## Gerar APK Android
-
-O perfil `preview` em `eas.json` já está configurado para gerar um APK de instalação. Com uma conta Expo autenticada e o projeto Supabase configurado (se quiser habilitar contas e sincronização), execute:
-
-```sh
-npx eas-cli build --platform android --profile preview
-```
-
-O EAS compila o APK na nuvem e apresenta um link para baixar o arquivo ao concluir. Sem credenciais Supabase o app ainda abre em modo visitante e salva o progresso no aparelho, mas cadastro, login e sincronização em nuvem ficam indisponíveis.
-
-Para habilitar contas no APK compilado pelo EAS, cadastre `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` nas variáveis de ambiente do projeto Expo para o ambiente `preview`. O arquivo `.env` local é ignorado pelo Git e não deve ser usado para publicar credenciais no repositório.
-
-## Conteúdo e limites
-
-Aplicações cotidianas foram incluídas para uma seleção de elementos comuns. Nos demais, o app apresenta a classificação e o link de consulta; não inventa aplicações ou curiosidades. Propriedades desconhecidas aparecem como “Não disponível”. Não inclui ilustrações de orbitais, ranking público ou cronômetro. A cor é acompanhada por nomes de categoria.
-
-Temperaturas são apresentadas em kelvin. A densidade segue a convenção da base: g/L para gases e g/cm³ para sólidos e líquidos. O estado físico é uma classificação de referência da base, sem controle de pressão e temperatura. Valores de superpesados podem ser previsões. A massa não deve ser usada para calcular o número exato de nêutrons sem identificar o isótopo.
-
-## Fontes e licenças
-
-Dados adaptados de Bowserinator, Periodic-Table-JSON:
-https://github.com/Bowserinator/Periodic-Table-JSON
-
-O arquivo `src/elements.json` é uma adaptação: nomes, fases e categorias traduzidos para português; seleção de propriedades; halogênios identificados como categoria própria. A base adaptada permanece sob CC BY-SA 3.0. A licença e os créditos estão em `DATA-LICENSE.md`. Links individuais de consulta acompanham cada elemento.
-
-Documentação de execução: https://docs.expo.dev/versions/v57.0.0/ e https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/.
-
-## Atalho no Windows
-
-Depois de instalar o Node.js, você também pode abrir `START-WINDOWS.bat`. Ele instala as dependências na primeira execução e inicia o Expo. O código continua disponível para edição pelo VS Code.
-
-## Verificação
-
-- TypeScript sem erros.
-- Cinco testes automatizados aprovados: integridade dos 118 elementos e alternativas dos quatro temas de quiz.
-- TypeScript, testes automatizados, compatibilidade Expo e exportações Android/Web verificados.
-
-Não foi gerado um APK nesta entrega: o EAS exige uma conta Expo autenticada. Também não foi feita autenticação contra um projeto Supabase de produção nem instalação em aparelho físico. Faça esses testes com as suas credenciais antes de distribuir o aplicativo.
-
-## Atualização para SDK 57
-
-Esta edição usa Expo SDK 57 para o Expo Go compatível com SDK 57. Extraia em uma nova pasta para evitar dependências antigas. Se usa Supabase, copie seu arquivo `.env` da versão anterior para a nova pasta.
-
-No terminal da pasta nova:
-
-```sh
-npm ci
-npx expo start --clear
-```
-
-Pare o terminal da versão antiga com Ctrl+C antes de iniciar a nova. Leia o novo QR code, sem reabrir o projeto antigo pelo histórico do Expo Go.
+- `App.tsx`: interface do fórum de comentários.
+- `src/comments-model.ts`: validação, tipos e ordenação/deduplicação.
+- `src/comments.ts`: cache local e integração opcional com o Supabase.
+- `src/backend.ts`: cliente do banco opcional.
+- `supabase/schema.sql`: tabela pública e políticas RLS do fórum.
+- `tests/comments.test.ts`: testes de validação e ordenação.

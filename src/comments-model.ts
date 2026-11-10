@@ -3,6 +3,8 @@ export type FeedbackComment = {
   name: string;
   feedback: string;
   created_at: string;
+  /** true somente quando o comentário ainda existe apenas no navegador de quem enviou */
+  localOnly?: boolean;
 };
 
 export type CommentInput = {
@@ -48,7 +50,10 @@ export function mergeComments(
   const unique = new Map<string, FeedbackComment>();
   for (const list of lists) {
     for (const comment of list) {
-      if (!unique.has(comment.id)) unique.set(comment.id, comment);
+      const existing = unique.get(comment.id);
+      if (!existing || (existing.localOnly && !comment.localOnly)) {
+        unique.set(comment.id, comment);
+      }
     }
   }
   return [...unique.values()]

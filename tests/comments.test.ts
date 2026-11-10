@@ -7,8 +7,9 @@ function comment(
   id: string,
   created_at: string,
   feedback = `Feedback ${id}`,
+  localOnly = false,
 ): FeedbackComment {
-  return { id, name: `Pessoa ${id}`, feedback, created_at };
+  return { id, name: `Pessoa ${id}`, feedback, created_at, localOnly };
 }
 
 test("nome e feedback são obrigatórios e são aparados", () => {
@@ -40,4 +41,10 @@ test("preserva feedback local além dos 100 comentários mais recentes", () => {
     comment(String(index), new Date(2026, 0, index + 1).toISOString()),
   );
   assert.equal(mergeComments(many).length, 125);
+});
+
+test("comentário publicado substitui o rascunho local pendente de mesmo ID", () => {
+  const pending = comment("same-id", "2026-01-01T10:00:00.000Z", "Rascunho", true);
+  const published = comment("same-id", "2026-01-02T10:00:00.000Z", "Publicado", false);
+  assert.deepEqual(mergeComments([pending], [published]), [published]);
 });

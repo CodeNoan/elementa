@@ -1,14 +1,12 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { backend } from "./backend";
 import {
-  CommentInput,
-  FeedbackComment,
+  type CommentInput,
+  type FeedbackComment,
   mergeComments,
+  validateCommentInput,
 } from "./comments-model";
 
 const COMMENTS_KEY = "elementa:comments";
-
-type FeedMode = "cloud" | "local" | "offline";
+export type FeedMode = "shared" | "local" | "offline";
 
 function isComment(value: unknown): value is FeedbackComment {
   if (!value || typeof value !== "object") return false;
@@ -21,9 +19,9 @@ function isComment(value: unknown): value is FeedbackComment {
   );
 }
 
-async function readCache(): Promise<FeedbackComment[]> {
+function readCache(): FeedbackComment[] {
   try {
-    const raw = await AsyncStorage.getItem(COMMENTS_KEY);
+    const raw = window.localStorage.getItem(COMMENTS_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed.filter(isComment) : [];
   } catch {
@@ -31,31 +29,66 @@ async function readCache(): Promise<FeedbackComment[]> {
   }
 }
 
-async function writeCache(comments: FeedbackComment[]): Promise<void> {
-  await AsyncStorage.setItem(COMMENTS_KEY, JSON.stringify(mergeComments(comments)));
+function writeCache(comments: FeedbackComment[]): void {
+  try {
+    window.localStorage.setItem(COMMENTS_KEY, JSON.stringify(mergeComments(comments)));
+  } catch {
+    // O serviço compartilhado continua funcionando se o cache do navegador estiver indisponível.
+  }
 }
 
-export async function loadComments(): Promise<{
-  comments: FeedbackComment[];
-  mode: FeedMode;
-}> {
-  const cached = await readCache();
-  if (!backend) return { comments: cached, mode: "local" };
+function newId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
+async function publishToNetlify(comment: FeedbackComment): Promise<FeedbackComment | null> {
   try {
-    const { data, error } = await backend
-      .from("feedback_comments")
-      .select("id,name,feedback,created_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) return { comments: cached, mode: "offline" };
-
-    const remote = (data || []).filter(isComment);
-    const merged = mergeComments(remote, cached);
-    await writeCache(merged).catch(() => undefined);
-    return { comments: merged, mode: "cloud" };
+    const response = await fetch("/api/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ id: comment.id, name: comment.name, feedback: comment.feedback }),
+    });
+    if (!response.ok) return null;
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== "object") return null;
+    const result = (payload as { comment?: unknown }).comment;
+    return isComment(result) ? { ...result, localOnly: false } : null;
   } catch {
-    return { comments: cached, mode: "offline" };
+    return null;
+  }
+}
+
+export async function loadComments(): Promise<{ comments: FeedbackComment[]; mode: FeedMode }> {
+  const cached = readCache();
+  try {
+    const response = await fetch("/api/comments", {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("O fórum compartilhado não respondeu.");
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== "object") throw new Error("Resposta inválida do fórum.");
+    const received = (payload as { comments?: unknown }).comments;
+    if (!Array.isArray(received)) throw new Error("Lista de comentários inválida.");
+
+    const remote = received.filter(isComment).map((comment) => ({ ...comment, localOnly: false }));
+    const pending = cached.filter((comment) => comment.localOnly);
+    const synced: FeedbackComment[] = [];
+    const stillPending: FeedbackComment[] = [];
+    for (const comment of pending) {
+      const published = await publishToNetlify(comment);
+      if (published) synced.push(published);
+      else stillPending.push(comment);
+    }
+
+    const comments = mergeComments(remote, synced, stillPending);
+    writeCache(comments);
+    return { comments, mode: "shared" };
+  } catch {
+    return { comments: cached, mode: cached.length ? "offline" : "local" };
   }
 }
 
@@ -63,31 +96,25 @@ export async function saveComment(input: CommentInput): Promise<{
   comment: FeedbackComment;
   mode: FeedMode;
 }> {
-  if (backend) {
-    try {
-      const { data, error } = await backend
-        .from("feedback_comments")
-        .insert({ name: input.name, feedback: input.feedback })
-        .select("id,name,feedback,created_at")
-        .single();
-      if (!error && data && isComment(data)) {
-        const comment = data;
-        const cached = await readCache();
-        await writeCache(mergeComments([comment], cached)).catch(() => undefined);
-        return { comment, mode: "cloud" };
-      }
-    } catch {
-      // A falha de rede mantém a possibilidade de salvar localmente.
-    }
+  const checked = validateCommentInput(input.name, input.feedback);
+  if (!checked.ok) throw new Error(checked.message);
+
+  const draft: FeedbackComment = {
+    id: newId(),
+    name: checked.value.name,
+    feedback: checked.value.feedback,
+    created_at: new Date().toISOString(),
+    localOnly: true,
+  };
+
+  const published = await publishToNetlify(draft);
+  if (published) {
+    const cached = readCache();
+    writeCache(mergeComments([published], cached));
+    return { comment: published, mode: "shared" };
   }
 
-  const localComment: FeedbackComment = {
-    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-    name: input.name,
-    feedback: input.feedback,
-    created_at: new Date().toISOString(),
-  };
-  const cached = await readCache();
-  await writeCache(mergeComments([localComment], cached));
-  return { comment: localComment, mode: backend ? "offline" : "local" };
+  const cached = readCache();
+  writeCache(mergeComments([draft], cached));
+  return { comment: draft, mode: "local" };
 }

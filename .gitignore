@@ -1,4 +1,7 @@
 node_modules/
-.expo/
 dist/
+.expo/
+.netlify/
 .env
+.env.*
+!.env.example

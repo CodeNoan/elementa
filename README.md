@@ -1,21 +1,29 @@
-# Elementa — fórum público de feedback
+# Elementa — tabela periódica interativa
 
-Site web em React, Vite e TypeScript. Não usa Expo, aplicativo móvel, página de login nem Supabase. Qualquer visitante pode publicar um comentário informando nome e feedback, e todas as pessoas veem o mesmo fórum.
+O Elementa é um site web de química. A tabela periódica continua sendo a tela principal, com busca, filtro por família, visualização em lista, escala ajustável e detalhes de cada elemento. O site também mantém quiz, favoritos e progresso local. **O fórum de feedback é uma aba separada**, sem substituir a tabela. Não há login nem dependência do Expo.
 
-## Como os comentários são compartilhados
+## O que está no site
 
-O site chama uma Netlify Function em `/api/comments`. A função grava cada comentário em um store site-wide do Netlify Blobs, persistente entre deploys, e entrega a lista aos visitantes. Cada envio recebe uma chave independente para que publicações simultâneas não sobrescrevam outros comentários. O store usa leitura consistente para que novos comentários apareçam no feed publicado.
+- Tabela interativa com os 118 elementos, cores por família, busca por nome/símbolo/número atômico e detalhes de propriedades.
+- Ficha individual com configuração eletrônica, elétrons por camada, propriedades físicas, usos cotidianos e fonte.
+- Comparação lado a lado de elementos, lista de favoritos e quiz introdutório com temas e número de questões configuráveis.
+- Progresso, favoritos e histórico de quiz guardados no navegador, sem cadastro.
+- Aba pública de feedback. Qualquer visitante pode publicar um nome e comentário, e os feedbacks publicados ficam visíveis para todos.
 
-Se a API estiver temporariamente indisponível, o comentário fica marcado como pendente no navegador de quem enviou. O site tenta publicá-lo automaticamente quando a conexão volta. Comentários pendentes ainda não estão visíveis para outros visitantes. Nome e feedback publicados são públicos; não envie informações pessoais sensíveis.
+## Fórum compartilhado no Netlify
+
+A aba Feedback chama a Netlify Function `/api/comments`. A função guarda os comentários em Netlify Blobs do site; a tabela periódica e as demais abas continuam disponíveis normalmente. O armazenamento site-wide permanece entre deploys. Se a função ficar indisponível temporariamente, um comentário fica como pendente apenas no navegador de quem enviou e o site tenta sincronizá-lo quando a conexão voltar.
+
+O fórum é público e não tem login. Nomes e comentários publicados ficam visíveis para qualquer pessoa; não envie informações pessoais sensíveis. A tabela e os dados de estudo são independentes do fórum.
 
 ## Publicar no Netlify
 
-1. No Netlify, crie um site a partir do repositório GitHub `CodeNoan/elementa` (ou conecte este repositório ao site existente).
-2. Mantenha a branch de produção `main`. O arquivo `netlify.toml` configura o build `npm run build`, a pasta publicada `dist` e as funções em `netlify/functions`.
-3. Faça o deploy. A função cria/usa o armazenamento Netlify Blobs do site; não é necessário configurar Supabase nem adicionar chaves de banco.
-4. Após o deploy ficar publicado, abra o domínio do Netlify e envie um comentário. Para confirmar o compartilhamento, acesse o mesmo domínio em outro navegador ou aparelho: o comentário deve aparecer para todos.
+1. Conecte o repositório GitHub `CodeNoan/elementa` a um site Netlify novo ou existente.
+2. Mantenha a branch de produção `main`. O `netlify.toml` configura `npm run build`, a pasta publicada `dist` e a função em `netlify/functions`.
+3. Faça o deploy pelo Netlify. Não é necessário configurar Supabase nem inserir chaves de banco.
+4. Na URL publicada, abra a aba **Feedback** para enviar comentários. A tabela periódica abre primeiro e continua disponível na aba **Tabela**.
 
-Se o repositório já estiver conectado ao Netlify, cada push na branch de produção inicia um novo deploy automaticamente. O histórico do fórum fica no armazenamento site-wide, não na pasta de build, portanto permanece entre deploys.
+Se o repositório já estiver conectado ao Netlify, cada push em `main` pode iniciar o deploy automaticamente. O arquivo `DATA-LICENSE.md` atribui a base periódica original e explica a licença CC BY-SA 3.0.
 
 ## Executar localmente
 
@@ -26,13 +34,13 @@ npm ci
 npm run dev
 ```
 
-O comando `npm run dev` serve a interface Vite; sem a função Netlify, os comentários de teste ficam apenas no armazenamento local do navegador. Para testar as funções localmente, use Netlify CLI:
+Para testar as Netlify Functions localmente, use:
 
 ```sh
 npx netlify-cli dev
 ```
 
-A loja local do Netlify Dev é isolada da produção. Os comentários criados localmente não são enviados para a loja do site publicado.
+O armazenamento local do Netlify Dev é separado do site publicado. Comentários criados localmente não são enviados ao fórum de produção.
 
 ## Verificações
 
@@ -44,9 +52,11 @@ npm run build
 
 ## Estrutura
 
-- `src/App.tsx`: interface web do fórum.
-- `src/comments-model.ts`: validação, tipos e ordenação/deduplicação.
-- `src/comments.ts`: chamadas à API, cache local e sincronização de comentários pendentes.
-- `netlify/functions/comments.mts`: endpoints GET/POST e persistência no Netlify Blobs.
-- `netlify.toml`: comandos de build, pasta de publicação e pasta de funções.
-- `tests/comments.test.ts`: testes da validação e ordenação.
+- `src/App.tsx`: tabela, página inicial, quiz, favoritos, perfil e aba de feedback.
+- `src/elements.json`: dados dos 118 elementos.
+- `src/quiz.ts`: perguntas simples sobre símbolos, nomes e usos cotidianos.
+- `src/comments-model.ts` e `src/comments.ts`: validação, cache local e sincronização de feedback.
+- `netlify/functions/comments.mts`: leitura e gravação pública no Netlify Blobs.
+- `netlify.toml`: build e configuração da função Netlify.
+- `DATA-LICENSE.md`: atribuição e licença dos dados periódicos.
+- `tests/`: testes do quiz, da base de elementos e do fórum.

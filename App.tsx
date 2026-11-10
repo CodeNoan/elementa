@@ -107,6 +107,7 @@ function Main() {
   const [user, setUser] = useState<{ id: string; name: string } | null>(null),
     [guest, setGuest] = useState(false),
     [tab, setTab] = useState("Início");
+  const [authReady, setAuthReady] = useState(!backend);
   const [ready, setReady] = useState(false),
     [progress, setProgress] = useState<Progress>(empty()),
     [sync, setSync] = useState("");
@@ -124,8 +125,7 @@ function Main() {
     [name, setName] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
-  const [difficulty, setDifficulty] = useState("Todos"),
-    [topic, setTopic] = useState("Misto"),
+  const [topic, setTopic] = useState("Misto"),
     [count, setCount] = useState(10),
     [questions, setQuestions] = useState<Question[]>([]),
     [index, setIndex] = useState(0),
@@ -134,14 +134,17 @@ function Main() {
   const saveQueue = useRef(Promise.resolve());
   const storageKey = user ? `elementa:${user.id}` : "elementa:guest";
   useEffect(() => {
-    if (!backend) return;
-    backend.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        const u = data.session.user;
-        setUser({ id: u.id, name: u.user_metadata.name || "Estudante" });
-      }
-    });
-    const { data } = backend.auth.onAuthStateChange((_event, session) => {
+    const client = backend;
+    if (!client) {
+      setAuthReady(true);
+      return;
+    }
+    let active = true;
+    const applySession = (
+      session: Awaited<
+        ReturnType<typeof client.auth.getSession>
+      >["data"]["session"],
+    ) => {
       setUser(
         session
           ? {
@@ -150,12 +153,26 @@ function Main() {
             }
           : null,
       );
+      setAuthReady(true);
+    };
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      if (active) applySession(session);
     });
+    client.auth
+      .getSession()
+      .then(({ data: sessionData }) => {
+        if (active) applySession(sessionData.session);
+      })
+      .catch(() => {
+        if (active) applySession(null);
+      });
+    if (AppState.currentState === "active") client.auth.startAutoRefresh();
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") backend?.auth.startAutoRefresh();
-      else backend?.auth.stopAutoRefresh();
+      if (state === "active") client.auth.startAutoRefresh();
+      else client.auth.stopAutoRefresh();
     });
     return () => {
+      active = false;
       data.subscription.unsubscribe();
       sub.remove();
     };
@@ -179,12 +196,26 @@ function Main() {
             setSync("Sem conexão com a nuvem. Dados locais preservados.");
           else if (
             data &&
-            (!local?.updatedAt || data.updated_at > local.updatedAt)
+            (!local?.updatedAt || data.updated_at >= local.updatedAt)
           ) {
             p = data.payload;
             await AsyncStorage.setItem(
               storageKey,
               JSON.stringify({ payload: p, updatedAt: data.updated_at }),
+            );
+            setSync("Progresso sincronizado.");
+          } else if (local?.updatedAt) {
+            const { error: uploadError } = await backend
+              .from("study_data")
+              .upsert({
+                user_id: user.id,
+                payload: p,
+                updated_at: local.updatedAt,
+              });
+            setSync(
+              uploadError
+                ? "Progresso salvo neste aparelho. Sincronização pendente."
+                : "Progresso local sincronizado com a nuvem.",
             );
           }
         }
@@ -304,17 +335,7 @@ function Main() {
     }
   }
   function startQuiz() {
-    setQuestions(
-      makeQuiz(
-        difficulty === "Essencial"
-          ? elements.filter((e) => e.number <= 20)
-          : difficulty === "Intermediário"
-            ? elements.filter((e) => e.number <= 54)
-            : elements,
-        count,
-        topic,
-      ),
-    );
+    setQuestions(makeQuiz(elements, count, topic));
     setAnswers([]);
     setIndex(0);
     setDone(false);
@@ -369,6 +390,13 @@ function Main() {
       <Text style={s.mass}>{e.atomic_mass.toFixed(3)}</Text>
     </Pressable>
   );
+  if (!authReady)
+    return (
+      <SafeAreaView style={[s.safe, s.center]}>
+        <ActivityIndicator color="#79dfb5" />
+        <Text style={s.subtitle}>Restaurando sua sessão…</Text>
+      </SafeAreaView>
+    );
   if (!user && !guest)
     return (
       <SafeAreaView style={s.safe}>
@@ -708,11 +736,12 @@ function Main() {
             {!questions.length ? (
               <>
                 <Text style={s.subtitle}>
-                  Escolha o tema. Cada resposta vem com uma explicação.
+                  Perguntas curtas sobre símbolos, nomes e exemplos do
+                  cotidiano. Cada resposta tem uma explicação simples.
                 </Text>
                 <Text style={s.h2}>O que você quer revisar?</Text>
                 <View style={s.grid}>
-                  {["Misto", "Símbolos", "Números", "Categorias"].map((t) => (
+                  {["Misto", "Símbolos", "Nomes", "Cotidiano"].map((t) => (
                     <Button
                       key={t}
                       secondary={topic !== t}
@@ -721,20 +750,6 @@ function Main() {
                     />
                   ))}
                 </View>
-                <Text style={s.h2}>Dificuldade</Text>
-                <View style={s.grid}>
-                  {["Essencial", "Intermediário", "Todos"].map((d) => (
-                    <Button
-                      key={d}
-                      secondary={difficulty !== d}
-                      label={d}
-                      onPress={() => setDifficulty(d)}
-                    />
-                  ))}
-                </View>
-                <Text style={s.small}>
-                  Essencial: elementos 1–20. Intermediário: 1–54. Todos: 1–118.
-                </Text>
                 <Text style={s.h2}>Tamanho da sessão</Text>
                 <View style={s.row}>
                   {[5, 10, 20].map((n) => (

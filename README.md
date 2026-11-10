@@ -29,7 +29,7 @@ O navegador é a alternativa imediata se não houver um cliente Expo Go compatí
 - Tabela com grupos e períodos, rolagem horizontal, controles de escala e visualização em cartões.
 - Busca sem diferenciar acentos, por nome, símbolo ou número; filtros por categoria.
 - Detalhes, favoritos e comparação entre dois elementos.
-- Quiz por tema, três faixas de dificuldade e sessões de 5, 10 ou 20 perguntas.
+- Quiz introdutório por tema (símbolos, nomes, cotidiano ou misto) e sessões de 5, 10 ou 20 perguntas.
 - Correção imediata, explicações, revisão ao final, experiência, nível e conquistas.
 - Meta diária, histórico dos últimos 100 quizzes e estatísticas.
 - Modo visitante com dados locais; contas reais e sincronização com Supabase quando configurado.
@@ -67,7 +67,7 @@ As mensagens transacionais e limites de envio dependem da configuração do seu 
 
 ### Armazenamento e sincronização
 
-Cada conta possui cache separado no aparelho. Sessões são persistidas pelo Supabase; as senhas não são armazenadas pelo código do aplicativo. Favoritos e resultados são salvos localmente e enviados à nuvem após mudanças. Ao abrir uma conta, o registro mais recente entre o cache e a nuvem é carregado. Mudanças simultâneas em vários aparelhos seguem a última gravação, sem mesclagem de conflitos. Visitante e conta têm históricos separados.
+Cada conta possui cache separado no aparelho. A sessão de autenticação é persistida pelo Supabase no armazenamento persistente do dispositivo, então fechar e reabrir o app não encerra a sessão; só “Sair da conta” desconecta o usuário. As senhas não são gravadas pelo código do app. Favoritos e resultados são salvos localmente e enviados à nuvem após mudanças. Ao reabrir uma conta, o app carrega o registro mais recente entre o cache e a nuvem e tenta sincronizar alterações locais que ficaram pendentes. Mudanças simultâneas em vários aparelhos seguem a última gravação, sem mesclagem de conflitos. Visitante e conta têm históricos separados.
 
 A consulta de elementos e o quiz funcionam offline depois de instalar o aplicativo. Login, recuperação e sincronização exigem internet. No desenvolvimento, o Expo Go normalmente precisa alcançar o servidor de desenvolvimento para carregar o projeto.
 
@@ -89,6 +89,18 @@ npx expo export --platform web
 - `recovery/index.html`: página de redefinição de senha.
 - `tests/quiz.test.ts`: integridade da base e perguntas.
 
+## Gerar APK Android
+
+O perfil `preview` em `eas.json` já está configurado para gerar um APK de instalação. Com uma conta Expo autenticada e o projeto Supabase configurado (se quiser habilitar contas e sincronização), execute:
+
+```sh
+npx eas-cli build --platform android --profile preview
+```
+
+O EAS compila o APK na nuvem e apresenta um link para baixar o arquivo ao concluir. Sem credenciais Supabase o app ainda abre em modo visitante e salva o progresso no aparelho, mas cadastro, login e sincronização em nuvem ficam indisponíveis.
+
+Para habilitar contas no APK compilado pelo EAS, cadastre `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` nas variáveis de ambiente do projeto Expo para o ambiente `preview`. O arquivo `.env` local é ignorado pelo Git e não deve ser usado para publicar credenciais no repositório.
+
 ## Conteúdo e limites
 
 Aplicações cotidianas foram incluídas para uma seleção de elementos comuns. Nos demais, o app apresenta a classificação e o link de consulta; não inventa aplicações ou curiosidades. Propriedades desconhecidas aparecem como “Não disponível”. Não inclui ilustrações de orbitais, ranking público ou cronômetro. A cor é acompanhada por nomes de categoria.
@@ -108,18 +120,13 @@ Documentação de execução: https://docs.expo.dev/versions/v57.0.0/ e https://
 
 Depois de instalar o Node.js, você também pode abrir `START-WINDOWS.bat`. Ele instala as dependências na primeira execução e inicia o Expo. O código continua disponível para edição pelo VS Code.
 
-## Gerar um APK de teste
-
-O arquivo `eas.json` inclui um perfil `preview` que gera APK. Com uma conta Expo, execute `npx eas-cli build --platform android --profile preview` e siga a configuração solicitada. Esse comando usa o serviço de compilação do Expo; o ZIP contém o projeto, não um APK já compilado.
-
-## Verificações realizadas nesta entrega
+## Verificação
 
 - TypeScript sem erros.
 - Cinco testes automatizados aprovados: integridade dos 118 elementos e alternativas dos quatro temas de quiz.
-- Compatibilidade das dependências conferida pelo Expo.
-- Exportação de produção para navegador e bundle Android concluídos.
+- TypeScript, testes automatizados, compatibilidade Expo e exportações Android/Web verificados.
 
-Não foi realizada instalação em aparelho físico nem autenticação contra um projeto Supabase de produção. Faça esses testes com seu projeto configurado antes de distribuir o aplicativo.
+Não foi gerado um APK nesta entrega: o EAS exige uma conta Expo autenticada. Também não foi feita autenticação contra um projeto Supabase de produção nem instalação em aparelho físico. Faça esses testes com as suas credenciais antes de distribuir o aplicativo.
 
 ## Atualização para SDK 57
 

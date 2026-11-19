@@ -9,7 +9,13 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
     status,
-    headers: { "Cache-Control": "no-store, max-age=0" },
+    headers: {
+      "Cache-Control": "no-store, max-age=0",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Accept",
+      Vary: "Origin",
+    },
   });
 }
 
@@ -30,6 +36,19 @@ function isComment(value: unknown): value is {
 }
 
 export default async function handler(request: Request): Promise<Response> {
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Accept",
+        "Access-Control-Max-Age": "86400",
+        Vary: "Origin",
+      },
+    });
+  }
+
   if (request.method !== "GET" && request.method !== "POST") {
     return json({ error: "Método não permitido." }, 405);
   }
@@ -95,5 +114,5 @@ export default async function handler(request: Request): Promise<Response> {
 
 export const config = {
   path: "/api/comments",
-  method: ["GET", "POST"],
+  method: ["GET", "POST", "OPTIONS"],
 };

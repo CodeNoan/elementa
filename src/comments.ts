@@ -6,6 +6,7 @@ import {
 } from "./comments-model";
 
 const COMMENTS_KEY = "elementa:comments";
+const COMMENTS_API_URL = import.meta.env.VITE_COMMENTS_API_URL?.trim() || "/api/comments";
 export type FeedMode = "shared" | "local" | "offline";
 
 function isComment(value: unknown): value is FeedbackComment {
@@ -46,7 +47,7 @@ function newId(): string {
 
 async function publishToNetlify(comment: FeedbackComment): Promise<FeedbackComment | null> {
   try {
-    const response = await fetch("/api/comments", {
+    const response = await fetch(COMMENTS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ id: comment.id, name: comment.name, feedback: comment.feedback }),
@@ -64,7 +65,7 @@ async function publishToNetlify(comment: FeedbackComment): Promise<FeedbackComme
 export async function loadComments(): Promise<{ comments: FeedbackComment[]; mode: FeedMode }> {
   const cached = readCache();
   try {
-    const response = await fetch("/api/comments", {
+    const response = await fetch(COMMENTS_API_URL, {
       headers: { Accept: "application/json" },
       cache: "no-store",
     });

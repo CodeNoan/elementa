@@ -1,6 +1,19 @@
 # Elementa — tabela periódica interativa
 
-O Elementa é um site web de química. A tabela periódica continua sendo a tela principal, com busca, filtro por família, visualização em lista, escala ajustável e detalhes de cada elemento. O site também mantém quiz, favoritos e progresso local. **O fórum de feedback é uma aba separada**, sem substituir a tabela. Não há login nem dependência do Expo.
+O Elementa é um app de química disponível como site e aplicativo Android. A tabela periódica continua sendo a tela principal, com busca, filtro por família, visualização em lista, escala ajustável e detalhes de cada elemento. O app também mantém quiz, favoritos e progresso local. **O fórum de feedback é uma aba separada**, sem substituir a tabela. A versão Android usa Capacitor e não depende do Expo.
+
+## Gerar o APK Android
+
+Requer Node.js 22.13+, JDK 21 e Android SDK com a plataforma/build-tools exigidos pelo projeto.
+
+```sh
+npm ci
+npm run android:apk
+```
+
+O APK de depuração será criado em `android/app/build/outputs/apk/debug/app-debug.apk`. Também é possível abrir o projeto nativo no Android Studio com `npm run android:open`. No GitHub, a execução manual ou um push em `main` gera o artefato `elementa-android-debug` na ação **Build Android APK**.
+
+Para conectar o fórum ao APK, defina `VITE_COMMENTS_API_URL` antes de compilar com a URL completa da Netlify Function, por exemplo `https://seu-site.netlify.app/api/comments`. O endpoint deste repositório aceita CORS para uso pelo app. Sem essa variável, os recursos de estudo continuam funcionando e os feedbacks ficam locais/offline no dispositivo. O fórum compartilhado requer que as alterações da função Netlify sejam publicadas no site.
 
 ## O que está no site
 
